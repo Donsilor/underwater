@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>系统设置</title>
+    <link rel="stylesheet" href="css/common.css"/>
+    <link rel="stylesheet" href="css/SystemSettings.css"/>
+    <link rel="stylesheet" href="css/ele.css">
+    <script src="./js/loadcommonjs.js"></script>
+</head>
+<body>
+
+<div class="center_main" id="settings">
+    <div class="top-nav clf">
+        <ul>
+            <li><a class="nav-active" :href="'SystemSettings.html?id='+ e.id" v-for="e in buoys">{{e.name}}</a></li>
+            <!--<li><a class="nav-active" :href="SystemSettings.html?id=e.id" v-for="e in buoys">{{e.name}}</a></li>-->
+        </ul>
+    </div>
+    <div class="content clf">
+        <div class="content-l fl">
+            <p>IP：{{currBuoy.isOnline?currBuoy.ip:"【离线】"}}</p>
+            <p>位置：{{siteStr}}({{siteUpdateTime}})</p>
+            <!--<p><span class="danger"><img src="images/icon-warning.png"></span>电量：<span class="yel-text">{{currBuoy.power}}%</span>-->
+            <!--</p>-->
+            <p>
+                在线方式：{{currBuoy.onlineType=="0"?"北斗或4G":currBuoy.onlineType=="1"?"4G":currBuoy.onlineType=="2"?"北斗":""}}</p>
+            <p>4G是否可用：{{currBuoy.is4GAvailable?"是":"否"}}</p>
+
+            <p class="pbot11">状态更新时间: ({{statusUpdateTime}})</p>
+            <div class="contlist">
+            <p>北斗是否可用：<span v-if="currBuoy.isBeidouAvailable" class="green-text">是</span><span
+                    v-if="!currBuoy.isBeidouAvailable" class="red-text">否</span></p>
+            <p>CTD采集状态：<span v-if="currBuoy.collectCTDStatus" class="green-text">正常</span><span
+                    v-if="!currBuoy.collectCTDStatus" class="red-text">异常</span></p>
+            <!--<p><span class="danger"><img src="images/icon-warning.png"></span>图像采集状态：<span class="yel-text">异常</p>-->
+            <p>图像采集状态：<span v-if="currBuoy.collectPicStatus" class="green-text">正常</span><span
+                    v-if="!currBuoy.collectPicStatus" class="red-text">异常</span></p>
+            </div>
+            <!--<p>水声通信系统状态：<span v-if="currBuoy.collectModelStatus" class="green-text">正常</span><span-->
+                    <!--v-if="!currBuoy.collectModelStatus" class="red-text">异常</span></p>-->
+            <p>最后上报时间：{{uploadTime}}</p>
+        </div>
+        <div class="content-r fl">
+            <p class="clf"><span>位置传输间隔：</span><input ref="siteTranInterval" v-model="siteTranInterval" class="fl"
+                                                      type="number" min="0"/><span
+                    class="minute">分钟</span><span class="writer fl"><img @click="toChangeSiteInterval"
+                                                                         src="images/icon-writer.png"/></span></p>
+            <p class="clf"><span>图像传输间隔：</span><input ref="picTranInterval" v-model="picTranInterval" class="fl"
+                                                      type="number" min="0"/><span
+                    class="minute">分钟</span><span class="writer fl"><img @click="toChangePicInterval"
+                                                                         src="images/icon-writer.png"/></span></p>
+            <p class="clf"><span>CTD传输间隔：</span><input ref="cTDTranInterval" v-model="cTDTranInterval" class="fl"
+                                                       type="number" min="0"/><span
+                    class="minute">分钟</span><span class="writer fl"><img @click="toChangeCTDInterval"
+                                                                         src="images/icon-writer.png"/></span></p>
+            <!--<p class="clf"><span>电量传输间隔：</span><input ref="powerTranInterval" v-model="powerTranInterval" class="fl" type="number" min="0"/>-->
+                <!--<span class="minute">分钟</span><span class="writer fl"><img @click="toChangePowerInterval" src="images/icon-writer.png"/></span>-->
+            <!--</p> -->
+            <p class="clf"><span>设备状态间隔：</span><input  ref="uploadBuoyStatusInterval" v-model="uploadBuoyStatusInterval" class="fl" type="number" min="0"/>
+                <span class="minute">分钟</span><span class="writer fl"><img @click="toChangeUploadBuoyStatusInterval" src="images/icon-writer.png"/></span>
+            </p>                                                        
+            <p class="clf"><span>路由上传间隔：</span><input  ref="uploadRoutesInterval" v-model="uploadRoutesInterval" class="fl" type="number" min="0"/>
+                <span class="minute">分钟</span><span class="writer fl"><img @click="toChangeUploadRoutesInterval" src="images/icon-writer.png"/></span>
+            </p>  
+
+            <p class="clf">
+                <span>浮标上传通道ID：</span>
+                <!--<input ref="cTDTranInterval" v-model="buoyUploadChanelId" class="fl"-->
+                       <!--type="number" min="0"/>-->
+                <select class="fl" v-model="buoyUploadChanelId">
+                    <option :value="e.id" v-for="e in buoys">{{e.id}}</option>
+                </select>
+            </p>
+            <p class="clf pbot10">本设备路由信息: ({{routesUpdatedTime}})</p>
+            <div class="molist">
+            <p>源   下一跳   目的</p>
+            <p class="clf" v-for="routes in currBuoy.modemRoutes">
+                <span>{{routes.join(' -->')}}</span>
+            </p>
+            </div>
+            <p class="clf pbot10">本设备传输路径:</p>
+            <div class="molist">
+            <p class="clf" v-for="routes in currBuoy.usedRoutes">
+                <span>{{routes.join(' -->')}}</span> --> 中心服务器
+            </p>
+            </div>
+
+        </div>
+        <div class="content-bottom clf">
+            <a class="reboot" @click="restart">重启设备</a>
+            <a class="reflash" @click="reflash">下发设备状态更新</a>
+
+            <a class="apply" href="javascript:" @click="apply">应用</a>
+            <a class="cancel" href="javascript:" @click="cancel">重置</a>
+        </div>
+    </div>
+</div>
+</body>
+<script type="text/javascript">
+
+    new Vue({
+        el: '#settings',
+        data: {
+            buoys: [],
+            buoyKey: getQueryString("id"),
+            currBuoy: {site:{}},
+
+
+            isRestartModelShow: false,
+
+            siteTranInterval: 120,
+            powerTranInterval: 120,
+            picTranInterval: 120,
+            cTDTranInterval: 15,
+            uploadBuoyStatusInterval: 10,
+            uploadRoutesInterval: 10,
+
+            uploadChanel: 1,
+            buoyUploadChanelId: 1,
+        },
+
+        computed: {
+            uploadTime: function () {
+                //return this.currBuoy.createdAt
+                return moment(this.currBuoy.updatedAt * 1000).format('YYYY-MM-DD HH:mm:ss')
+            },
+            siteUpdateTime: function () {
+                return moment(this.currBuoy.site.updatedAt * 1000).format('YYYY-MM-DD HH:mm:ss')
+            },
+
+            statusUpdateTime: function () {
+                return moment(this.currBuoy.statusUpdatedAt * 1000).format('YYYY-MM-DD HH:mm:ss')
+            },
+
+            routesUpdatedTime: function () {
+                return moment(this.currBuoy.routesUpdatedAt * 1000).format('YYYY-MM-DD HH:mm:ss')
+            },
+
+            siteStr : function () {
+                const lng = this.currBuoy.site.lng
+                const lat = this.currBuoy.site.lat
+                if(lng>=0) {
+                    if (lat>=0) {
+                        return `E${lng}/N${lat}`
+                    }else {
+                        return `E${lng}/S${lat}`
+                    }
+                } else {
+                    if (lat>=0) {
+                        return `W${lng}/N${lat}`
+                    }else {
+                        return `W${lng}/S${lat}`
+                    }
+                }
+            }
+        },
+
+        mounted: function () {
+            const that = this;
+            this.getBuoys();
+            setInterval(function () {
+                that.getBuoy()
+            }, 60 * 1000)
+        },
+
+        methods: {
+
+            sendEvent: function () {
+                const that = this
+                POST(`/api/send`, {id: this.currBuoy.id, ip: this.currBuoy.ip, opt: 1}).then(data => { //发送上传图片的事件
+                    if (data.status !== 'ok') {
+                        that.$notify({
+                            title: '内部错误',
+                            message: data.message,
+                            type: 'error',
+                            offset: 100
+                        });
+                    }
+                })
+            },
+
+            getBuoys: function () {
+                const that = this;
+                this.loading = true
+                GET("/api/buoys", {}).then(data => {
+                    that.loading = false
+                    if (data.status !== 'ok') {
+                        that.$notify({
+                            title: '内部错误',
+                            message: data.message,
+                            type: 'error',
+                            offset: 100
+                        });
+                    } else {
+                        that.buoys = data.buoys;
+
+                        for (var i = 0; i < that.buoys.length; i++) {
+                            if (that.buoys[i].id == that.buoyKey) {
+                                const d = that.buoys[i];
+                                that.currBuoy = d;
+                                that.siteTranInterval = d.buoyConfig.siteTranInterval
+                                that.powerTranInterval = d.buoyConfig.powerTranInterval
+                                that.picTranInterval = d.buoyConfig.picTranInterval
+                                that.cTDTranInterval = d.buoyConfig.cTDTranInterval
+                                that.uploadBuoyStatusInterval = d.buoyConfig.uploadBuoyStatusInterval
+                                that.uploadRoutesInterval = d.buoyConfig.uploadRoutesInterval
+
+                                that.uploadChanel = d.buoyConfig.uploadChanel
+                                that.buoyUploadChanelId = d.buoyConfig.buoyUploadChanelId
+                                return d;
+                            }
+                        }
+
+                    }
+                })
+            },
+            onChangeBuoy: function (item) {
+                localStorage.setItem("fubiao", JSON.stringify(item))
+                this.buoyKey = item.id
+            },
+
+            toChangeSiteInterval: function () {
+                this.$refs.siteTranInterval.focus();
+            },
+
+            toChangePowerInterval: function () {
+                this.$refs.powerTranInterval.focus();
+            },
+
+            toChangePicInterval: function () {
+                this.$refs.picTranInterval.focus();
+            },
+
+            toChangeCTDInterval: function () {
+                this.$refs.cTDTranInterval.focus();
+            },
+
+            toChangeUploadBuoyStatusInterval: function () {
+                this.$refs.uploadBuoyStatusInterval.focus();
+            },
+
+            toChangeUploadRoutesInterval: function () {
+                this.$refs.uploadRoutesInterval.focus();
+            },
+
+            restart: function () {
+                const that = this;
+                this.$confirm('是否确认重启设备？', '提示', {
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                    showClose: false,
+                    type: 'warning',
+                    center: true
+                }).then(() => {
+                    const loading = this.$loading({
+                        lock: true,
+                        //text: '加载中...',
+                        spinner: 'el-icon-loading',
+                        background: 'rgba(0, 0, 0, 0.7)'
+                    });
+                    PUT(`/api/buoys/${that.buoyKey}/restart`, {}).then(data => {
+                        loading.close();
+                        if (data.status !== 'ok') {
+                            that.$notify({
+                                title: '重启失败',
+                                message: data.message,
+                                type: 'error',
+                                offset: 100
+                            });
+                        } else {
+                            that.$notify({
+                                title: '重启成功',
+                                type: 'success',
+                                offset: 100
+                            });
+                        }
+                    }).catch(e => {
+                        loading.close()
+                        that.$notify({
+                            title: '重启失败',
+                            message: "连接设备超时",
+                            type: 'error',
+                            offset: 100
+                        });
+                    })
+
+                }).catch(() => {
+                    that.$message({
+                        type: 'info',
+                        message: '已取消重启'
+                    });
+                });
+            },
+
+            reflash: function () {
+                this.sendEvent()
+                this.getBuoy()
+            },
+
+            getBuoy: function () {
+                const that = this;
+                const loading = this.$loading({
+                    lock: true,
+                    //text: '加载中...',
+                    spinner: 'el-icon-loading',
+                    background: 'rgba(0, 0, 0, 0.7)'
+                });
+                GET(`/api/buoys/${this.buoyKey}`, {}).then(data => {
+                    loading.close()
+                    if (data.status !== 'ok') {
+                        that.$notify({
+                            title: '刷新失败',
+                            message: data.message,
+                            type: 'error',
+                            offset: 100
+                        });
+                    } else {
+                        this.currBuoy = data.buoy;
+                    }
+                })
+            },
+
+            apply: function () {
+                const that = this;
+                const loading = this.$loading({
+                    lock: true,
+                    //text: '加载中...',
+                    spinner: 'el-icon-loading',
+                    background: 'rgba(0, 0, 0, 0.7)'
+                });
+                const data = {
+                    siteTranInterval : parseInt(this.siteTranInterval),
+                    powerTranInterval : parseInt(this.powerTranInterval),
+                    picTranInterval : parseInt(this.picTranInterval),
+                    cTDTranInterval : parseInt(this.cTDTranInterval),
+                    uploadBuoyStatusInterval: parseInt(this.uploadBuoyStatusInterval),
+                    uploadRoutesInterval: parseInt(this.uploadRoutesInterval),
+
+                    uploadChanel : parseInt(this.uploadChanel),
+                    //downLoadChanel : parseInt(this.downLoadChanel),
+                    buoyUploadChanelId : parseInt(this.buoyUploadChanelId)
+                }
+
+                PUT(`/api/buoys/${that.buoyKey}`, data).then(data => {
+                    loading.close();
+                    if (data.status !== 'ok') {
+                        that.$notify({
+                            title: '设置失败',
+                            message: data.message,
+                            type: 'error',
+                            offset: 100
+                        });
+                    } else {
+                        that.$notify({
+                            title: '设置成功',
+                            type: 'success',
+                            offset: 100
+                        });
+                    }
+                }).catch(() => {
+                    loading.close()
+                    that.$notify({
+                        title: '设置失败',
+                        message: "连接设备超时",
+                        type: 'error',
+                        offset: 100
+                    });
+                })
+            },
+
+            cancel: function () {
+                this.siteTranInterval = this.currBuoy.siteTranInterval
+                this.powerTranInterval = this.currBuoy.powerTranInterval
+                this.picTranInterval = this.currBuoy.picTranInterval
+                this.cTDTranInterval = this.currBuoy.cTDTranInterval
+                this.uploadBuoyStatusInterval = this.currBuoy.uploadBuoyStatusInterval
+                this.uploadRoutesInterval = this.currBuoy.uploadRoutesInterval
+                this.uploadChanel = this.currBuoy.uploadChanel
+                //this.downLoadChanel = this.currBuoy.downLoadChanel
+                this.buoyUploadChanelId = this.currBuoy.buoyUploadChanelId
+            },
+
+        },
+    })
+
+
+</script>
+</html>

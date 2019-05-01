@@ -1,0 +1,36 @@
+.center_main{position:absolute;top:80px;right:0;left:250px;padding:20px;}
+.box{width:100%;background-color:#fff;padding: 16px;}
+.map{width:100%;height:630px;}
+.box img{width: 100%;height: 100%}
+.bottom-text{padding-top: 2rem;width: 100%;margin: 0 auto; padding-bottom: 2rem; border: 1px solid #ccc; margin-bottom: 1.5rem; padding-left: 2rem;}
+.bottom-text p{font-size: .8rem;line-height: 2rem; float: left; width: 25%;}
+.bottom-text p span{float: left;line-height: 2rem;}
+.bottom-text .arrow{display:block;width: 5rem;height: 2rem;}
+
+.mobile_header{display: none;}
+.footer{display: none;}
+@media only screen and (max-width:750px) {
+.search{width: 95%;height: 2rem;position: fixed;top:3.5rem;left: 2.5%;border: solid 1px #ccc;background: #fff;z-index: 6;display: block;}
+.mobile_header{display: block;}
+.footer{display: block;}
+.top_info{display: none;}
+.navigation{display: none;}
+.box{width:100%;background-color:#fff;padding: 0;height: 100%;}
+.map{width: 100%;height: 100%}
+.mobile_header .user_images{background: url(../images/photo_1.jpg) center/100% 100%;border-radius: 50%;}
+.bottom-text{display: none;}
+.footer{height:4rem;width: 100%;position: fixed;bottom: 0;left: 0;}
+.footer ul{width: 100%;height:100%;background: #ccc;}
+.footer ul li{width: calc((100% - 4px)/3)!important;height: 100%!important;background: #fff;float: left;margin-right: 2px}
+.footer ul li:last-child{margin-right: 0;}
+.footer ul li .footer_logo{height:1.5rem;width:1.5rem;margin: 0 auto;margin-top:.625rem;margin-bottom: .25rem;}
+.footer ul li .footer_logo img{width: 100%;height: 100%;}
+.footer ul li span{display: block;width: 100%;text-align: center;color: #333;font-size: 1rem;}
+.footer ul li:hover{background:#40c8f7;}
+.white{color: #fff!important;}
+.search input[type=text]{width:calc(100% - 2rem);height: 100%;padding-left: 1rem;font-size: 12px;}
+.search input[type=submit]{width:2rem;height: 100%;text-align: center;background: #fff;background:url(../images/search.png) center/100% 100%;}
+.center_main{top: 3rem;padding: 0;left: 0;height: calc(100vh - 8rem);}
+
+	}
+

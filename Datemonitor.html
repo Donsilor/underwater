@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>数据监控</title>
+  <meta name="viewport"
+        content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+  <link rel="stylesheet" href="css/common.css">
+  <link rel="stylesheet" href="css/Datemonitor.css">
+  <link rel="stylesheet" href="css/datepicker.css">
+  <!-- 引入样式 -->
+  <link rel="stylesheet" href="css/ele.css">
+  <script type="text/javascript" src="js/echarts.min.js"></script>
+  <!-- 引入组件库 -->
+  <script src="./js/loadcommonjs.js"></script>
+
+
+</head>
+<body>
+
+<div class="center_main" id="center_main">
+  <div class="clf filter">
+    <form action="">
+      <div class="clf select">
+        <span class="left_span">设备选择</span>
+        <select v-model="buoyId">
+          <option :value="e.id" v-for="e in buoys">{{e.name}}</option>
+        </select>
+      </div>
+      <div class="clf time">
+        <span class="left_span">时间</span>
+        <el-date-picker
+          size="mini"
+          v-model="datarange"
+          type="datetimerange"
+          range-separator="至"
+          start-placeholder="开始日期"
+          end-placeholder="结束日期"
+          :picker-options="pickerOptions2">
+        </el-date-picker>
+      </div>
+      <div class="clf mobileTime">
+        <el-date-picker
+          size="mini"
+          v-model="m_startTime"
+          align="right"
+          type="date"
+          placeholder="开始时间"
+          :picker-options="pickerOptions1">
+        </el-date-picker>
+        <el-date-picker
+          size="mini"
+          v-model="m_endTime"
+          align="right"
+          type="date"
+          placeholder="结束时间"
+          :picker-options="pickerOptions1">
+        </el-date-picker>
+        <a href="javascript:" class="searchBtn fr" @click="onMobileSearchChange">查询</a>
+      </div>
+      <div class="clf btns">
+        <input @click="search" type="button" value="查询">
+        <input type="reset" value="重置">
+        <input type="button" @click="refreshPic" v-loading.fullscreen.lock="picLoading" class="refresh" value="刷新">
+        <input @click="download" type="button" value="导出">
+      </div>
+    </form>
+  </div>
+  <div class="chart clf">
+    <div class="buoy clf fl">
+      <div class="chart-nav clf">
+        <span>浮标</span>
+      </div>
+      <div class="buoy-chart" :style="{background: 'url(' + currPic.url + ') no-repeat center/100% 100%'}">
+        <a :href="currPic.url" download="" class="downloadBtn"><img src="images/download.png" alt=""></a>
+        <p class="buoy-text clf">
+          <span>{{buoy.name}}</span><span>{{siteStr(buoy.site)}}</span><span>{{currPic.uploadAt}}</span></p>
+        <!--<p class="buoy-text clf"><span>{{buoy.name}}</span><span>北纬N24°35′5.17″ 东经E118°04′16.59″</span><span>2018-09-30  14:24:55</span></p>-->
+
+      </div>
+      <div class="chart-bottom">
+        <p class="clf"><a class="prev-buoy fl" @click="pre">上一组</a></p>
+        
+        <p class="clf"><a class="next-buoy fr" @click="post">下一组</a></p>
+      </div>
+    </div><!--浮标图表-->
+    <div class="temperature clf fr">
+      <div class="chart-nav clf">
+        <span class="chart-icon"><img src="images/icon_temperature.png"/></span>
+        <span>温度(℃)</span>
+        <!--<select name="" id="">-->
+        <!--<option value="">折线图</option>-->
+        <!--<option value="">柱状图</option>-->
+        <!--</select>-->
+      </div>
+      <div id="temperature-chart" class="com-chart">
+
+      </div>
+    </div><!--温度图表-->
+    <div class="salinity clf fl">
+      <div class="chart-nav clf">
+        <span class="chart-icon"><img src="images/icon_salinity.png"/></span>
+        <span>盐度(ppm)</span>
+        <!--<select name="" id="">-->
+        <!--<option value="">折线图</option>-->
+        <!--<option value="">柱状图</option>-->
+        <!--<option value="">表单</option>-->
+        <!--</select>-->
+      </div>
+      <div id="salinity-chart" class="com-chart">
+
+      </div>
+    </div><!--盐度图表-->
+    <div class="depth clf fr">
+      <div class="chart-nav clf">
+        <span class="chart-icon"><img src="images/icon_depth.png"/></span>
+        <span>深度(M)</span>
+        <!--<select name="" id="">-->
+        <!--<option value="">折线图</option>-->
+        <!--<option value="">柱状图</option>-->
+        <!--<option value="">表单</option>-->
+        <!--</select>-->
+      </div>
+      <div id="depth-chart" class="com-chart">
+
+      </div>
+    </div>
+  </div>
+
+</div>
+<div class="footer">
+  <ul class="clf">
+    <li>
+      <div class="footer_logo"><img src="images/icon_1.png"/></div>
+      <span class="footer_text">数据监控</span>
+    </li>
+    <li>
+      <div class="footer_logo"><img src="images/icon_2.png"/></div>
+      <span class="footer_text">设备管理</span>
+    </li>
+    <li>
+      <div class="footer_logo"><img src="images/icon_3.png"/></div>
+      <span class="footer_text">系统设置</span>
+    </li>
+  </ul>
+</div>
+
+<script>
+
+new Vue({
+  el: '#center_main',
+  data: {
+    picLoading: false,
+    userinfo: JSON.parse(getCookie('userinfo')),
+    buoys: [],
+
+    pickerOptions1: {
+      disabledDate (time) {
+        return time.getTime() > Date.now()
+      },
+      shortcuts: [{
+        text: '今天',
+        onClick (picker) {
+          picker.$emit('pick', new Date())
+        }
+      }, {
+        text: '昨天',
+        onClick (picker) {
+          const date = new Date()
+          date.setTime(date.getTime() - 3600 * 1000 * 24)
+          picker.$emit('pick', date)
+        }
+      }, {
+        text: '一周前',
+        onClick (picker) {
+          const date = new Date()
+          date.setTime(date.getTime() - 3600 * 1000 * 24 * 7)
+          picker.$emit('pick', date)
+        }
+      }]
+    },
+
+    pickerOptions2: {
+      shortcuts: [{
+        text: '最近一周',
+        onClick (picker) {
+          const end = new Date()
+          const start = new Date()
+          start.setTime(start.getTime() - 3600 * 1000 * 24 * 7)
+          picker.$emit('pick', [start, end])
+        }
+      }, {
+        text: '最近一个月',
+        onClick (picker) {
+          const end = new Date()
+          const start = new Date()
+          start.setTime(start.getTime() - 3600 * 1000 * 24 * 30)
+          picker.$emit('pick', [start, end])
+        }
+      }, {
+        text: '最近三个月',
+        onClick (picker) {
+          const end = new Date()
+          const start = new Date()
+          start.setTime(start.getTime() - 3600 * 1000 * 24 * 90)
+          picker.$emit('pick', [start, end])
+        }
+      }]
+    },
+
+    buoyId: '',
+    datarange: [],
+
+    monitor: {},
+    buoy: {site:{}},
+    currPic: {url: 'images/buoy_bg.png'},
+    currIndex: 0,
+
+    link: '',
+
+    m_startTime: '',
+    m_endTime: ''
+  },
+  computed: {},
+  mounted: function () {
+    this.getBuoys()
+    const that = this
+    setInterval(function () {
+      const startTime = that.datarange[0].valueOf()
+      const endTime = new Date().getTime()//that.datarange[1].valueOf()
+        that.datarange = [startTime, endTime]
+      that.getBuoyMonitor(startTime, endTime)
+    }, 60 * 2 * 1000)
+  },
+
+  methods: {
+    sendEvent: function () {
+      const that = this
+      console.log('=================', {id: this.buoy.id, ip: this.buoy.ip, opt: 1})
+      POST(`/api/send`, {id: this.buoy.id, ip: this.buoy.ip, opt: 1}).then(data => { //发送上传图片的事件
+        if (data.status !== 'ok') {
+          that.$notify({
+            title: '内部错误',
+            message: data.message,
+            type: 'error',
+            offset: 100
+          })
+        }
+      })
+    },
+
+      siteStr : function (site) {
+          const lng = site.lng || 0
+          const lat = site.lat || 0
+          if(lng>=0) {
+              if (lat>=0) {
+                  return `E${lng}/N${lat}`
+              }else {
+                  return `E${lng}/S${lat}`
+              }
+          } else {
+              if (lat>=0) {
+                  return `W${lng}/N${lat}`
+              }else {
+                  return `W${lng}/S${lat}`
+              }
+          }
+      },
+
+    refreshPic: function () {
+      const that = this
+      setTimeout(function () {
+          const startTime = that.datarange[0].valueOf()
+          const endTime = new Date().getTime()//that.datarange[1].valueOf()
+          that.datarange = [startTime, endTime]
+        that.search()
+        that.picLoading = false
+      }, 2000)
+    },
+
+    pre: function () {
+      console.log(this.currIndex, this.monitor.pics.length)
+      if (this.currIndex <= 0) {
+        return
+      }
+      this.currIndex = this.currIndex - 1
+      this.currPic = this.monitor.pics[this.currIndex]
+    },
+
+    post: function () {
+      console.log(this.currIndex, this.monitor.pics.length)
+      if (this.currIndex >= this.monitor.pics.length - 1) {
+        return
+      }
+      this.currIndex = this.currIndex + 1
+      this.currPic = this.monitor.pics[this.currIndex]
+    },
+
+    search: function () {
+
+      for (var i = 0; i < this.buoys.length; i++) {
+        const d = this.buoys[i]
+        if (this.buoyId == d.id) {
+          this.buoy = d
+          break
+        }
+      }
+
+      const startTime = this.datarange[0].valueOf()
+      const endTime = this.datarange[1].valueOf()
+      //this.sendEvent()
+      this.getBuoyMonitor(startTime, endTime)
+    },
+
+    onMobileSearchChange: function () {
+      console.log('=========================')
+      for (var i = 0; i < this.buoys.length; i++) {
+        const d = this.buoys[i]
+        if (this.buoyId == d.id) {
+          this.buoy = d
+          break
+        }
+      }
+
+      const startTime = this.m_startTime.valueOf()
+      const endTime = this.m_endTime.valueOf()
+      console.log('====================', startTime, endTime)
+      this.getBuoyMonitor(startTime, endTime)
+    },
+
+    download: function () {
+
+      for (var i = 0; i < this.buoys.length; i++) {
+        const d = this.buoys[i]
+        if (this.buoyId == d.id) {
+          this.buoy = d
+          break
+        }
+      }
+
+      const startTime = this.datarange[0].valueOf()
+      const endTime = this.datarange[1].valueOf()
+      console.log('====================', startTime, endTime)
+      this.link = DownLoadURL(`/api/buoys/${this.buoyId}/download?startTime=${startTime || ''}&endTime=${endTime || ''}`)
+      window.location = this.link
+    },
+
+    getBuoys: function () {
+      const that = this
+      this.loading = true
+      GET('/api/buoys', {}).then(data => {
+        that.loading = false
+        if (data.status !== 'ok') {
+          alert(data.message)
+        } else {
+          that.buoys = data.buoys
+          that.buoy = data.buoys[0]
+          that.buoyId = data.buoys[0].id
+
+          const end = new Date()
+          const start = new Date()
+          start.setTime(start.getTime() - 3600 * 1000 * 24 * 1)
+          that.datarange = [start, end]
+          //that.sendEvent()
+          that.getBuoyMonitor(start.valueOf(), end.valueOf())
+        }
+      })
+    },
+
+    getBuoyMonitor: function (startTime, endTime) {
+      const that = this
+      const loading = this.$loading({
+        lock: true,
+        text: '加载中...',
+        spinner: 'el-icon-loading'
+        //background: 'rgba(0, 0, 0, 0.7)'
+      })
+      GET(`/api/buoys/${this.buoyId}/monitor?startTime=${startTime || ''}&endTime=${endTime || ''}`, {}).then(data => {
+        if (data.status !== 'ok') {
+          that.$notify({
+            title: '刷新失败',
+            message: data.message,
+            type: 'error',
+            offset: 100
+          })
+        } else {
+          loading.close()
+          that.monitor = data.monitor
+          that.buoy = data.monitor.buoy
+          that.currPic = data.monitor.pics[data.monitor.pics.length - 1] || {}
+          that.currIndex = data.monitor.pics.length - 1
+
+          const xAxis = data.monitor.xAxis
+
+          const temperatureChart = echarts.init(document.getElementById('temperature-chart'))
+          const salinityChart = echarts.init(document.getElementById('salinity-chart'))
+          const depthChart = echarts.init(document.getElementById('depth-chart'))
+          that.drawChart(temperatureChart, xAxis, data.monitor.temperatureSeries, {
+            type: '温度',
+            unit: '℃',
+            lineColor: '#eb6d6d'
+          })
+          that.drawChart(salinityChart, xAxis, data.monitor.salinitySeries, {
+            type: '盐度',
+            unit: 'ppm',
+            lineColor: '#66d3f9'
+          })
+          that.drawChart(depthChart, xAxis, data.monitor.depthSeries, {
+            type: '深度',
+            unit: 'M',
+            lineColor: '#8f65ae'
+          })
+        }
+      })
+    },
+
+    drawChart: function (chart, xAxis, series, tag) {
+      const option = {
+        tooltip: {
+          backgroundColor: '#eb6d6d',
+          trigger: 'axis',
+          position: 'top',
+          formatter: function (params) {
+            return params[0].name + '<br>' + params[0].seriesName + ':' + params[0].data + tag.unit
+          }
+        },
+        toolbox: {//工具栏,内置有导出图片，数据视图，动态类型切换，数据区域缩放，重置五个工具。
+          feature: {//各工具配置项。
+            magicType: {//动态类型切换 示例：feature: { magicType: {type: ['line', 'bar', 'stack', 'tiled']}}
+              show: true,
+              type: ['line', 'bar']
+            },
+            dataView: {//数据视图工具，可以展现当前图表所用的数据，编辑后可以动态更新。
+              show: true,//是否显示组件。
+              readOnly: false
+            }
+          }
+        },
+        xAxis: {
+          type: 'category',
+          boundaryGap: true,
+          data: xAxis
+        },
+        yAxis: {
+          type: 'value',
+          position: 'top',
+          axisLabel: {
+            formatter: `{value}`
+          }
+        },
+        series: [{
+          name: `${tag.type}`,
+          data: series,
+          type: 'line',
+          areaStyle: {color: 'rgba(143,101,174,0.5)'},
+          itemStyle: {
+            normal: {
+              color: tag.lineColor || '#8f65ae'
+            },
+            lineStyle: {
+              color: tag.lineColor || '#8f65ae'
+            }
+          }
+        }]
+      }
+      chart.setOption(option)
+    }
+  }
+})
+</script>
+
+</body>
+</html>

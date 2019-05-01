@@ -1,0 +1,288 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>设备管理</title>
+    <meta name="viewport"
+          content="width=device-width,user-scalable=no,initial-scale=1.0,maximum-scale=1.0,minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <link rel="stylesheet" href="css/common.css"/>
+    <link rel="stylesheet" href="css/Equipmentmanagement.css"/>
+    <link rel="stylesheet" href="css/ele.css">
+    <script src="./js/loadcommonjs.js"></script>
+</head>
+<body>
+<div id="maps">
+    <div class="search">
+        <input class="fl" type="text" placeholder="搜索"/>
+        <input class="fr" type="submit" value=""/>
+    </div>
+    <div class="center_main">
+        <div style="width:100%;background-color:#fff;padding: 16px;">
+            <div class="map" id="container"></div>
+            <div class="bottom-text clf">
+                <p class="clf"><span class="arrow"><img src="images/red-arrow.png"/></span><span>:上传通道，设为上传通道的节点可通过4G或北斗将数据传回控制中心</span>
+                </p>
+                <p class="clf"><span class="arrow"><img src="images/green-arrow.png"/></span><span>:上传通道， 非数据上传通道的节点需通过水声通信（本示例用绿色实线指示）中转至数据上传通道的节点才能回传</span>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="https://webapi.amap.com/maps?v=1.4.11&key=e0b9e3be8f688a60a6e9a87150d6edc7"></script>
+
+<script>
+
+    const online = url + '/images/image14.png';
+    const offline = 'images/image13.png';
+
+    const tipWarn = 'images/tipsWarn.png';
+    const tipError = 'images/tipsError.png';
+
+    var maps = new Vue({
+        el: '#maps',
+        data: {
+            buoys: [],
+            center: [113.852005, 22.623339],
+            lnglats: {},
+
+            overlayGroups: new AMap.OverlayGroup([]),
+            linkGroups: new AMap.OverlayGroup([]),
+        },
+
+        mounted: function () {
+            const map = new AMap.Map('container', {
+                zoom: 10,
+                center: [113.852005, 22.623339],
+                resizeEnable: true
+            });
+
+            AMap.plugin([
+                'AMap.ToolBar',
+            ], function () {
+                // 在图面添加工具条控件，工具条控件集成了缩放、平移、定位等功能按钮在内的组合控件
+                map.addControl(new AMap.ToolBar({
+                    // 简易缩放模式，默认为 false
+                    liteStyle: true
+                }));
+            });
+
+            const that = this;
+            that.flash(map);
+            setInterval(function () {
+                for (var i = 0; i < that.buoys.length; i++) {
+                    const d = that.buoys[i];
+                    //that.sendEvent(d.id, d.ip)
+                }
+                that.flash(map);
+            }, 10 * 1000)
+
+        },
+        methods: {
+
+            siteLngStr: function (lng) {
+                if (lng >= 0) {
+                    return `E${lng}`
+                } else {
+                    return `W${lng}`
+                }
+            },
+
+            siteLatStr: function (lat) {
+                if (lat >= 0) {
+                    return `N${lat}`
+                } else {
+                    return `S${lat}`
+                }
+            },
+
+
+            sendEvent: function (id, ip) {
+                const that = this
+                POST(`/api/send`, {id: id, ip: ip}).then(data => { //刷新坐标，电量，设备状态
+                    if (data.status !== 'ok') {
+                        that.$notify({
+                            title: '内部错误',
+                            message: data.message,
+                            type: 'error',
+                            offset: 100
+                        });
+                    }
+                })
+            },
+
+
+            linkRouter: function (map, buoys) {
+                const that = this;
+                const markers = [];
+
+                map.remove(that.linkGroups)
+                // 创建覆盖物群组，并将 marker 传给 OverlayGroup
+
+                for (var m = 0; m < buoys.length; m++) {
+                    const b = buoys[m];
+                    const routers = b.usedRoutes;
+
+                    for (var i = 0; i < routers.length; i++) {
+                        const r = routers[i];
+                        if (r.length == 1 && r[0] == b.id) {
+                            continue
+                        }
+                        const path = []
+                        for (var j = 0; j < r.length; j++) {
+                            path.push(that.lnglats[r[j]])
+
+                        }
+
+                        const polyline = new AMap.Polyline({
+                            path: path,            // 设置线覆盖物路径
+                            showDir: true,
+                            //dirColor:'pink',
+                            strokeDashStyle: 'dash',
+                            strokeColor: '#3bf022',   // 线颜色
+                            strokeWeight: 5           // 线宽
+                        });
+                        markers.push(polyline);
+                    }
+                }
+                const linkGroups = new AMap.OverlayGroup(markers);
+                that.linkGroups = linkGroups;
+                map.add(linkGroups);
+                //map.setFitView();
+            },
+
+
+            createMark: function (map, buoys) {
+                const that = this;
+                const lnglats = {};//[[116.39, 39.92], [116.41, 39.93], [116.43, 39.91], [116.46, 39.93]];
+                const markers = [];
+                // 创建点实例
+                const buildingMarker = new AMap.Marker({
+                    position: new AMap.LngLat(113.852005, 22.623339),
+                    icon: 'images/image12.png', //'https://a.amap.com/jsapi_demos/static/demo-center/icons/poi-marker-default.png'
+                    offset: new AMap.Pixel(-13, -30)
+                });
+
+
+                markers.push(buildingMarker);
+
+                for (var i = 0; i < buoys.length; i++) {
+                    const b = buoys[i]
+                    var currIcon = online;
+                    var tipIcon = tipWarn;
+                    var lnglat = [b.site.lng, b.site.lat];
+
+                    if (lnglat[0] == 0 && lnglat[1] == 0) {
+                        lnglat = [that.center[0] + 0.1 * (i + 1), that.center[1] + 0.1 * (i + 1)];
+                    }
+
+                    lnglats[b.id] = lnglat;
+
+                    if (!b.isOnline) {
+                        currIcon = offline
+                    }
+
+                    // 创建点实例
+                    const marker = new AMap.Marker({
+                        position: new AMap.LngLat(lnglat[0], lnglat[1]),
+                        icon: currIcon,
+                        offset: new AMap.Pixel(-21, -45),
+                        extData: {
+                            id: i + 1
+                        }
+                    });
+
+                    const popInfo = `<div><strong>${b.name}</strong>
+                        <div>纬度:<span>${that.siteLatStr(b.site.lat)}</span></div>
+                        <div>经度:<span>${that.siteLngStr(b.site.lng)}(${moment(b.site.updatedAt * 1000).format('YYYY-MM-DD h:mm:ss')})</span></div>
+                        <div>IP:<span>${b.ip}</span></div>
+                        <div>电量:<span>${b.power}%</span></div>
+                        <div>最后上报时间:<span>${moment(b.updatedAt * 1000).format('YYYY-MM-DD h:mm:ss')}</span></div>
+                    </div>`
+
+                    const infoWindow = new AMap.InfoWindow({
+                        content: popInfo,
+                        offset: new AMap.Pixel(16, -45)
+                    });
+
+                    AMap.event.addListener(marker, 'click', function () {
+                        infoWindow.open(map, marker.getPosition());
+                    });
+
+                    markers.push(marker);
+
+                    const path = [
+                        lnglat,
+                        that.center,
+                    ];
+
+                    const polyline = new AMap.Polyline({
+                        path: path,            // 设置线覆盖物路径
+                        strokeStyle: 'dashed',
+                        strokeColor: '#f01a14',   // 线颜色
+                        strokeWeight: 3           // 线宽
+                    });
+                    markers.push(polyline);
+
+                    const power = b.power;
+                    const bIcons = {};
+                    const bInfos = {};
+                    if (power < 50 || !b.isOnline) {
+                        bIcons[b.id] = tipIcon
+                        bInfos[b.id] = `<div style="color: gold"><strong>低电量：${power}%</strong></div>`
+                        if (!b.isOnline) {
+                            bIcons[b.id] = tipError
+                            bInfos[b.id] = `<div style="color: red"><strong>节点无响应</strong></div>`
+                        }
+
+                        const marker2 = new AMap.Marker({
+                            position: new AMap.LngLat(lnglat[0], lnglat[1]),
+                            offset: new AMap.Pixel(5, -45),
+                            icon: bIcons[b.id],
+                            extData: {
+                                id: i * 10 + 1
+                            }
+                        });
+                        const infoWindow2 = new AMap.InfoWindow({
+                            content: bInfos[b.id],
+                            offset: new AMap.Pixel(16, -45)
+                        });
+
+                        infoWindow2.open(map, marker2.getPosition());
+                        markers.push(marker2)
+                    }
+                }
+
+                map.remove(that.overlayGroups)
+                // 创建覆盖物群组，并将 marker 传给 OverlayGroup
+                const overlayGroups = new AMap.OverlayGroup(markers);
+                that.overlayGroups = overlayGroups;
+                that.lnglats = lnglats;
+                map.add(overlayGroups);
+                map.setFitView()
+            },
+
+
+            flash: function (map) {
+                const that = this;
+                GET("/api/buoys", {}).then(function (data) {
+                    if (data.status !== 'ok') {
+                        that.$notify({
+                            title: '获取浮标失败',
+                            message: data.message,
+                            type: 'error',
+                            offset: 100
+                        });
+                    } else {
+                        that.buoys = data.buoys;
+                        that.createMark(map, data.buoys)
+                        that.linkRouter(map, data.buoys)
+
+                    }
+                });
+            },
+        },
+    })
+</script>
+</body>
+</html>

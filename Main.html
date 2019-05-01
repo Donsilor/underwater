@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>数据监控</title>
+  <meta name="viewport"
+        content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+  <link rel="stylesheet" href="css/common.css">
+  <link rel="stylesheet" href="css/Datemonitor.css">
+  <link rel="stylesheet" href="css/ele.css">
+  <script src="./js/loadcommonjs.js"></script>
+  <script>
+  function setIframeHeight (iframe) {
+    if (iframe) {
+      var iframeWin = iframe.contentWindow || iframe.contentDocument.parentWindow
+      if (iframeWin.document.body) {
+        iframe.height = (iframeWin.document.documentElement.scrollHeight || iframeWin.document.body.scrollHeight)
+      }
+    }
+  }
+  </script>
+</head>
+<body>
+<div id="Main">
+  <div class="mobile_header">
+    <div class="user_images"></div>
+    <div class="header_text">{{path.title}}</div>
+    <div class="user">
+      <span class="img"><img src="images/photo_1.jpg" alt=""></span>
+      <span class="name">{{userinfo.username}}</span>
+      <div class="userMenu">
+        <a href="changePassword.html">修改密码</a>
+        <a href="login.html">退出登录</a>
+      </div>
+    </div>
+  </div>
+  <div class="top_info">
+    <div class="title">水下网络实验系统综合控制平台</div>
+    <div class="user">
+      <span class="img"><img src="images/photo_1.jpg" alt=""></span>
+      <span class="name">{{userinfo.username}}</span>
+      <div class="userMenu">
+        <a href="changePassword.html">修改密码</a>
+        <a href="login.html">退出登录</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="navigation">
+    <div class="logo"><img src="images/image12.png"></div>
+    <div class="nav">
+      <ul>
+        <li :class="[path.key=='Datemonitor.html'? 'current' : '' ]"><a href="javascript:;"
+                                                                        @click="changePath('Datemonitor.html')">数据监控</a>
+        </li>
+        <li :class="[path.key=='Equipmentmanagement.html'? 'current' : '' ]"><a href="javascript:;"
+                                                                                @click="changePath('Equipmentmanagement.html')">设备管理</a>
+        </li>
+        <li :class="[path.key=='SystemSettings.html'? 'current' : '' ]"><a href="javascript:;"
+                                                                           @click="changePath('SystemSettings.html')">系统设置</a>
+          <ul v-if="isBuoyTabShow">
+            <li><a :class="[e.id==buoyKey?'nav-active active':'']" @click="changePath('SystemSettings.html', e.id)"
+                   v-for="e in buoys"><span v-text="e.name"></span></a></li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+  </div>
+  <!--<div class="center_main">-->
+  <iframe :src="buoyPath" width="100%" frameborder="0" scrolling="no" onload="setIframeHeight(this)"></iframe>
+
+
+  <div class="footer">
+    <ul class="clf">
+      <li :class="[path.key=='Datemonitor.html'? 'current' : '' ]" @click="changePath('Datemonitor.html')">
+        <div class="footer_logo"><img src="images/icon_1.png"/></div>
+        <span class="footer_text">数据监控</span>
+      </li>
+      <li :class="[path.key=='Equipmentmanagement.html'? 'current' : '' ]"
+          @click="changePath('Equipmentmanagement.html')">
+        <div class="footer_logo"><img src="images/icon_2.png"/></div>
+        <span class="footer_text">设备管理</span>
+      </li>
+      <li :class="[path.key=='SystemSettings.html'? 'current' : '' ]" @click="changePath('SystemSettings.html')">
+        <div class="footer_logo"><img src="images/icon_3.png"/></div>
+        <span class="footer_text">系统设置</span>
+      </li>
+    </ul>
+  </div>
+</div>
+
+
+<script>
+const pathMap = {
+  'Datemonitor.html': {key: 'Datemonitor.html', title: '数据监控'},
+  'Equipmentmanagement.html': {key: 'Equipmentmanagement.html', title: '设备管理'},
+  'SystemSettings.html': {key: 'SystemSettings.html', title: '系统设置'}
+}
+
+new Vue({
+  el: '#Main',
+  data: {
+    path: pathMap['Datemonitor.html'],
+    userinfo: {},
+    buoys: [],
+    buoyKey: ''
+  },
+  computed: {
+    isBuoyTabShow: function () {
+      return this.path.key == 'SystemSettings.html'
+    },
+    buoyPath: function () {
+      return `${this.path.key}?id=${this.buoyKey}`
+    }
+  },
+  mounted: function () {
+      const u = getCookie('userinfo')
+      if (u ==undefined || u =='') {
+          location.href = "login.html"
+          return
+      } else {
+          this.userinfo = JSON.parse(u)||{}
+      }
+
+    this.getBuoys()
+  },
+  methods: {
+    getBuoys: function () {
+      const that = this
+      this.loading = true
+      GET('/api/buoys', {}).then(data => {
+        that.loading = false
+        if (data.status !== 'ok') {
+          alert(data.message)
+        } else {
+          that.buoys = data.buoys
+          that.buoyKey = (data.buoys[0] || {}).id
+          console.log((data.buoys[0] || {}).id)
+        }
+      })
+    },
+    changePath: function (path, buoyKey) {
+      this.path = pathMap[path]
+      this.buoyKey = buoyKey
+      if (path == 'SystemSettings.html' && buoyKey == undefined && this.buoys.length > 0) {
+        this.buoyKey = this.buoys[0].id
+      }
+    }
+
+  }
+})
+</script>
+</body>
+</html>
